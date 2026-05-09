@@ -2,11 +2,13 @@ import io, os, zipfile, datetime
 import streamlit as st
 from PIL import Image, ImageOps
 from pdf2image import convert_from_bytes
+from pillow_heif import register_heif_opener
+
+register_heif_opener()
 
 st.set_page_config(page_title="画像変換アプリ", page_icon="✨", layout="centered")
-
 st.title("✨ 画像変換アプリ（JPEG出力）")
-st.write("PNG / JPEG / BMP / PDF → 高画質なJPEGに変換します。")
+st.write("PNG / JPEG / BMP / HEIC / PDF → 高画質なJPEGに変換します。")
 st.write("・1枚のとき：JPEGをそのままダウンロード\n\n・2枚以上のとき：ZIPにまとめてダウンロード")
 
 with st.sidebar:
@@ -18,7 +20,7 @@ with st.sidebar:
 
 uploaded = st.file_uploader(
     "📁 ファイルを選択（複数可）",
-    type=["png", "jpg", "jpeg", "bmp", "pdf"],
+    type=["png", "jpg", "jpeg", "bmp", "pdf", "heic", "heif"],
     accept_multiple_files=True,
 )
 
@@ -47,7 +49,7 @@ if st.button("🚀 変換する", type="primary", use_container_width=True):
             content = f.read()
             base = os.path.splitext(f.name)[0]
             total_in += len(content)
-            lines.append(f"📄 {f.name}  ({len(content)/1024:.1f} KB)")
+            lines.append(f"📄 {f.name} ({len(content)/1024:.1f} KB)")
             try:
                 if f.name.lower().endswith(".pdf"):
                     pages = convert_from_bytes(content, dpi=dpi)
@@ -55,13 +57,13 @@ if st.button("🚀 変換する", type="primary", use_container_width=True):
                         data, sz = convert_image(page, target_w, quality, keep)
                         out_name = f"{base}_p{i}.jpg"
                         results.append((out_name, data, sz))
-                        lines.append(f"   → {out_name}  {sz[0]}x{sz[1]}  ({len(data)/1024:.1f} KB)")
+                        lines.append(f"   → {out_name}  {sz[0]}x{sz[1]} ({len(data)/1024:.1f} KB)")
                 else:
                     img = Image.open(io.BytesIO(content))
                     data, sz = convert_image(img, target_w, quality, keep)
                     out_name = f"{base}_converted.jpg"
                     results.append((out_name, data, sz))
-                    lines.append(f"   → {out_name}  {sz[0]}x{sz[1]}  ({len(data)/1024:.1f} KB)")
+                    lines.append(f"   → {out_name}  {sz[0]}x{sz[1]} ({len(data)/1024:.1f} KB)")
             except Exception as e:
                 lines.append(f"   ❌ エラー: {e}")
             progress.progress(idx / len(uploaded))
@@ -71,7 +73,7 @@ if st.button("🚀 変換する", type="primary", use_container_width=True):
             st.error("変換できたファイルがありませんでした。")
         else:
             total_out = sum(len(d) for _, d, _ in results)
-            st.success(f"✅ 完了: {len(results)} ファイル　{total_in/1024/1024:.2f} MB → {total_out/1024/1024:.2f} MB")
+            st.success(f"✅ 完了: {len(results)} ファイル  {total_in/1024/1024:.2f} MB → {total_out/1024/1024:.2f} MB")
             if len(results) == 1:
                 out_name, data, _ = results[0]
                 st.image(data, caption=out_name, use_container_width=True)
